@@ -738,12 +738,12 @@ apcmastersnmp_set_config(StonithPlugin * s, StonithNVpair * list)
 	PluginImports->mfree(namestocopy[1].s_value);
 	sd->community = namestocopy[2].s_value;
 
-        /* try to resolve the hostname/ip-address */
+	/* try to resolve the hostname/ip-address */
 
 	rc = getaddrinfo(sd->hostname, NULL, NULL, &res);
 	if (rc == 0) {
 		freeaddrinfo(res);
-        	/* init snmp library */
+		/* init snmp library */
 		init_snmp("apcmastersnmp");
 
 		/* now try to get a snmp session */
@@ -751,7 +751,7 @@ apcmastersnmp_set_config(StonithPlugin * s, StonithNVpair * list)
 
 			/* ok, get the number of outlets from the masterswitch */
 			if ((i = APC_read(sd->sptr, OID_NUM_OUTLETS, ASN_INTEGER))
-                    		== NULL) {
+				== NULL) {
 				LOG(PIL_CRIT
 				, "%s: cannot read number of outlets."
 				,       __FUNCTION__);
@@ -771,8 +771,8 @@ apcmastersnmp_set_config(StonithPlugin * s, StonithNVpair * list)
 			,       __FUNCTION__);
 		}
 	}else{
-		LOG(PIL_CRIT, "%s: cannot resolve hostname '%s', h_errno %d."
-		,       __FUNCTION__, sd->hostname, h_errno);
+		LOG(PIL_CRIT, "%s: cannot resolve hostname '%s', %s."
+		,       __FUNCTION__, sd->hostname, gai_strerror(rc));
 	}
 
 	/* not a valid config */
