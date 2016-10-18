@@ -716,6 +716,7 @@ apcmastersnmp_set_config(StonithPlugin * s, StonithNVpair * list)
 	struct pluginDevice* sd = (struct pluginDevice *)s;
 	int	rc;
 	int *	i;
+	struct addrinfo *res;
 	StonithNamesToGet	namestocopy [] =
 	{	{ST_IPADDR,	NULL}
 	,	{ST_PORT,	NULL}
@@ -738,7 +739,10 @@ apcmastersnmp_set_config(StonithPlugin * s, StonithNVpair * list)
 	sd->community = namestocopy[2].s_value;
 
         /* try to resolve the hostname/ip-address */
-	if (gethostbyname(sd->hostname) != NULL) {
+
+	rc = getaddrinfo(sd->hostname, NULL, NULL, &res);
+	if (rc == 0) {
+		freeaddrinfo(res);
         	/* init snmp library */
 		init_snmp("apcmastersnmp");
 
