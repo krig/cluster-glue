@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/python3
 # vim: set filetype=python
 #######################################################################
 #
@@ -74,7 +74,7 @@ class DracMC(telnetlib.Telnet):
 
     def _get_timestamp(self):
         ct = time.time()
-        msecs = (ct - long(ct)) * 1000
+        msecs = (ct - int(ct)) * 1000
         return "%s,%03d" % (time.strftime("%Y-%m-%d %H:%M:%S",
                             time.localtime(ct)), msecs)
 
@@ -170,7 +170,7 @@ class DracMCStonithPlugin:
 
     def _get_timestamp(self):
         ct = time.time()
-        msecs = (ct - long(ct)) * 1000
+        msecs = (ct - int(ct)) * 1000
         return "%s,%03d" % (time.strftime("%Y-%m-%d %H:%M:%S",
                             time.localtime(ct)), msecs)
 
@@ -200,7 +200,7 @@ class DracMCStonithPlugin:
                            self._parameters['cyclades_port'])
                     c.login(self._parameters['username'],
                             self._parameters['password'])
-                except Exception, args:
+                except Exception as args:
                     if "Connection reset by peer" in str(args):
                         self._echo_debug("Someone is already logged in... retry=%s" % tries)
                         c.close()
@@ -362,7 +362,7 @@ class DracMCStonithPlugin:
             func = getattr(self, cmd, self.not_implemented)
             rc = func()
             return(rc)
-        except Exception, args:
+        except Exception as args:
             self.echo_log("err", 'Exception raised:', str(args))
             if self._connection:
                 self.echo_log("err", self._connection.get_history())

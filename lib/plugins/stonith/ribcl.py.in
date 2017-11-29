@@ -18,7 +18,7 @@
 
 import sys
 import socket
-from httplib import *
+from http.client import *
 from time import sleep
 
 
@@ -29,7 +29,7 @@ try:
         host = argv[1].split('.')[0]+'-rm'
         cmd = argv[2]
 except IndexError:
-        print "Not enough arguments"
+        print("Not enough arguments")
         sys.exit(1)
 
 
@@ -63,10 +63,10 @@ try:
         if cmd == 'reset' and host.startswith('gfxcl'):
                 acmds.append(login + todo['off'] + logout)
                 acmds.append(login + todo['on'] + logout)
-        else:   
+        else:
                 acmds.append(login + todo[cmd] + logout)
 except KeyError:
-        print "Invalid command: "+ cmd
+        print("Invalid command: " + cmd)
         sys.exit(1)
 
 
@@ -88,13 +88,13 @@ try:
                 sleep(1)
 
 
-except socket.gaierror, msg:
-        print msg
+except socket.gaierror as msg:
+        print(msg)
         sys.exit(1)
-except socket.sslerror, msg:
-        print msg
+except socket.sslerror as msg:
+        print(msg)
         sys.exit(1)
-except socket.error, msg:
-        print msg
+except socket.error as msg:
+        print(msg)
         sys.exit(1)
 

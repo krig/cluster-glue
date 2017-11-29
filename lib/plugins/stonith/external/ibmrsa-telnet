@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 # vim: set filetype=python
 #######################################################################
 #
@@ -71,7 +71,7 @@ class RSABoard(telnetlib.Telnet):
 
     def _get_timestamp(self):
         ct = time.time()
-        msecs = (ct - long(ct)) * 1000
+        msecs = (ct - int(ct)) * 1000
         return "%s,%03d" % (time.strftime("%Y-%m-%d %H:%M:%S",
                             time.localtime(ct)), msecs)
 
@@ -149,7 +149,7 @@ class RSAStonithPlugin:
 
     def _get_timestamp(self):
         ct = time.time()
-        msecs = (ct - long(ct)) * 1000
+        msecs = (ct - int(ct)) * 1000
         return "%s,%03d" % (time.strftime("%Y-%m-%d %H:%M:%S",
                             time.localtime(ct)), msecs)
 
@@ -305,7 +305,7 @@ class RSAStonithPlugin:
             func = getattr(self, cmd, self.not_implemented)
             rc = func()
             return(rc)
-        except Exception, args:
+        except Exception as args:
             self.echo_log("err", 'Exception raised:', str(args))
             if self._connection:
                 self.echo_log("err", self._connection.get_history())
