@@ -23,6 +23,7 @@
 #
 # History:
 #   2009-10-12  First release.
+#   2017-12-14  Port to Python 3 (Kristoffer Gronlund <kgronlund@suse.com>)
 #
 # Copyright (c) 2009 Novell, Inc.
 # All Rights Reserved.
@@ -55,6 +56,18 @@ import subprocess
 
 LOGINRETRIES = 10
 
+
+def is_program(prog):
+    """Is this program available?"""
+    def isexec(filename):
+        return os.path.isfile(filename) and os.access(filename, os.X_OK)
+    for p in os.getenv("PATH").split(os.pathsep):
+        f = os.path.join(p, prog)
+        if isexec(f):
+            return f
+    return None
+
+
 class TimeoutException(Exception):
     def __init__(self, value=None):
         Exception.__init__(self)
@@ -69,71 +82,73 @@ class DracMC(telnetlib.Telnet):
         self._timeout = 4
         self._loggedin = 0
         self._history = []
-        self._appl = os.path.basename(sys.argv[0])
         self._server = args[0]
 
-    def _get_timestamp(self):
+    def _get_timestamp(self) -> str:
         ct = time.time()
         msecs = (ct - int(ct)) * 1000
         return "%s,%03d" % (time.strftime("%Y-%m-%d %H:%M:%S",
                             time.localtime(ct)), msecs)
 
-    def write(self, buffer):
-        self._history.append(self._get_timestamp() + ': WRITE: ' + repr(buffer))
-        telnetlib.Telnet.write(self, buffer)
+    def write(self, buffer: bytes) -> None:
+        self._history.append(self._get_timestamp() + ': WRITE: ' + repr(buffer.decode('ascii')))
+        telnetlib.Telnet.write(self, buffer.encode('ascii'))
 
-    def read_until(self, what, timeout=2):
+    def read_until(self, what: bytes, timeout:int=2) -> bytes:
         line = telnetlib.Telnet.read_until(self, what, timeout)
-        self._history.append(self._get_timestamp() + ': READ : ' + repr(line))
-        if not line.endswith(what):
-            raise TimeoutException("Timeout while waiting for '%s'." % (what, ))
+        line = line
+        linestr = line.decode('ascii')
+        self._history.append(self._get_timestamp() + ': READ : ' + repr(linestr))
+        whatstr = what.decode('ascii')
+        if not linestr.endswith(whatstr):
+            raise TimeoutException("Timeout while waiting for '%s'." % (whatstr, ))
         return line
 
-    def login(self, user, passwd):
+    def login(self, user: bytes, passwd: bytes):
         time.sleep(0.3)
         try:
-            line = self.read_until('Login: ', self._timeout)
+            line = self.read_until(b'Login: ', self._timeout)
             self.write(user)
-            self.write('\r')
-            line = self.read_until('Password: ', self._timeout)
+            self.write(b'\r')
+            line = self.read_until(b'Password: ', self._timeout)
             self.write(passwd)
-            self.write('\r')
-        except:
-            self.write("\r")
-            line = self.read_until('Login: ', self._timeout)
+            self.write(b'\r')
+        except (EOFError, TimeoutException):
+            self.write(b'\r')
+            line = self.read_until(b'Login: ', self._timeout)
             self.write(user)
-            self.write('\r')
-            line = self.read_until('Password: ', self._timeout)
+            self.write(b'\r')
+            line = self.read_until(b'Password: ', self._timeout)
             self.write(passwd)
-            self.write('\r')
+            self.write(b'\r')
         try:
-            line = self.read_until('DRAC/MC:', self._timeout)
-        except:
-            self.write("\r")
-            line = self.read_until('DRAC/MC:', self._timeout)
+            line = self.read_until(b'DRAC/MC:', self._timeout)
+        except (EOFError, TimeoutException):
+            self.write(b'\r')
+            line = self.read_until(b'DRAC/MC:', self._timeout)
 
     def hardreset(self):
-        self.write('serveraction -s %s hardreset\r' % self._server)
-        line = self.read_until('OK', 10)
-        line = self.read_until('DRAC/MC:', self._timeout)
-            
+        self.write('serveraction -s {} hardreset\r'.format(self._server).encode('ascii'))
+        line = self.read_until(b'OK', 10)
+        line = self.read_until(b'DRAC/MC:', self._timeout)
+
     def powercycle(self):
-        self.write('serveraction -s %s powercycle\r' % self._server)
-        line = self.read_until('OK', 10)
-        line = self.read_until('DRAC/MC:', self._timeout)
+        self.write('serveraction -s {} powercycle\r'.format(self._server).encode('ascii'))
+        line = self.read_until(b'OK', 10)
+        line = self.read_until(b'DRAC/MC:', self._timeout)
 
     def on(self):
-        self.write('serveraction -s %s powerup\r' % self._server)
-        line = self.read_until('OK', 10)
-        line = self.read_until('DRAC/MC:', self._timeout)
+        self.write('serveraction -s {} powerup\r'.format(self._server).encode('ascii'))
+        line = self.read_until(b'OK', 10)
+        line = self.read_until(b'DRAC/MC:', self._timeout)
 
     def off(self):
-        self.write('serveraction -s %s powerdown\r' % self._server)
-        line = self.read_until('OK', 10)
-        line = self.read_until('DRAC/MC:', self._timeout)
+        self.write('serveraction -s {} powerdown\r'.format(self._server).encode('ascii'))
+        line = self.read_until(b'OK', 10)
+        line = self.read_until(b'DRAC/MC:', self._timeout)
 
     def exit(self):
-        self.write('exit\r')
+        self.write(b'exit\r')
 
     def get_history(self):
         return "\n".join(self._history)
@@ -150,9 +165,6 @@ class DracMCStonithPlugin:
         self._required_cmds_list = self._required_cmds.split()
         self._optional_cmds_list = self._optional_cmds.split()
 
-        # who am i
-        self._appl = os.path.basename(sys.argv[0])
-
         # telnet connection object
         self._connection = None
 
@@ -168,14 +180,17 @@ class DracMCStonithPlugin:
             except IndexError:
                 self._parameters[name] = ''
 
-    def _get_timestamp(self):
+    def _get_timestamp(self) -> str:
         ct = time.time()
         msecs = (ct - int(ct)) * 1000
         return "%s,%03d" % (time.strftime("%Y-%m-%d %H:%M:%S",
                             time.localtime(ct)), msecs)
 
     def _echo_debug(self, *args):
-        subprocess.call("ha_log.sh debug '%s'" % ' '.join(args), shell=True)
+        if is_program("ha_log.sh"):
+            subprocess.call("ha_log.sh debug '{}'".format(' '.join(args)), shell=True)
+        elif os.environ.get("DRACMC_DEBUG") == "yes":
+            print('debug :', ' '.join(args))
 
     def echo(self, *args):
         what = ''.join([str(x) for x in args])
@@ -185,7 +200,10 @@ class DracMCStonithPlugin:
         self._echo_debug("STDOUT:", what)
 
     def echo_log(self, level, *args):
-        subprocess.call("ha_log.sh %s '%s'" % (level,' '.join(args)), shell=True)
+        if is_program("ha_log.sh"):
+            subprocess.call("ha_log.sh {} '{}'".format(level, ' '.join(args)), shell=True)
+        elif os.environ.get("DRACMC_DEBUG") == "yes":
+            print(level, ':', ' '.join(args))
 
     def _get_connection(self):
         if not self._connection:
@@ -198,8 +216,8 @@ class DracMCStonithPlugin:
                 try:
                     c.open(self._parameters['cyclades_ip'],
                            self._parameters['cyclades_port'])
-                    c.login(self._parameters['username'],
-                            self._parameters['password'])
+                    c.login(self._parameters['username'].encode('ascii'),
+                            self._parameters['password'].encode('ascii'))
                 except Exception as args:
                     if "Connection reset by peer" in str(args):
                         self._echo_debug("Someone is already logged in... retry=%s" % tries)
