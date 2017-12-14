@@ -17,6 +17,8 @@
 # Extended by Jochen Roeder <jochen.roeder@novell.com> 
 # to enable access via proxies
 #
+# Ported to Python 3 by Kristoffer Gronlund <kgronlund@suse.com>
+#
 # This library is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Lesser General Public
 # License as published by the Free Software Foundation; either
@@ -39,8 +41,23 @@ import http.client as httplib
 import time
 import re
 
+
+def is_program(prog):
+    """Is this program available?"""
+    def isexec(filename):
+        return os.path.isfile(filename) and os.access(filename, os.X_OK)
+    for p in os.getenv("PATH").split(os.pathsep):
+        f = os.path.join(p, prog)
+        if isexec(f):
+            return f
+    return None
+
+
 def log_msg(level,msg):
-    subprocess.call("ha_log.sh %s '%s'" % (level,msg), shell=True)
+    if is_program("ha_log.sh"):
+        subprocess.call("ha_log.sh %s '%s'" % (level,msg), shell=True)
+    elif os.environ.get("RILOE_DEBUG") == "yes":
+        print("{} {}".format(level, msg))
 def my_err(msg):
     log_msg("err", msg)
 def my_warn(msg):
@@ -332,11 +349,11 @@ def open_ilo(host):
             proxy_connect='CONNECT %s:%s HTTP/1.1\r\n'%(host,443)
             user_agent='User-Agent: python\r\n'
             proxy_pieces=proxy_connect+user_agent+'\r\n'
-            proxy.sendall(proxy_pieces)
+            proxy.sendall(proxy_pieces.encode('ascii'))
             response=proxy.recv(8192) 
             status=response.split()[1]
             if status!=str(200):  
-                fatal("Error status=: %s" %(response))
+                fatal("Error status=: %s" %(response.decode('ascii')))
             import ssl
             sock = ssl.wrap_socket(proxy) 
             h=httplib.HTTPConnection('localhost')
@@ -363,7 +380,7 @@ def send_request(req,proc_f):
     t_begin = time.time()
     c = open_ilo(rihost)
     try:
-        c.send(req+'\r\n')
+        c.send((req+'\r\n').encode('ascii'))
     except socket.error as msg:
         fatal("%s, while talking to %s" %(msg,rihost))
     t_end = time.time()
@@ -376,7 +393,7 @@ def send_request(req,proc_f):
             reply = c.sock.recv(1024)
             if not reply:
                 break
-            result.append(reply)
+            result.append(reply.decode('ascii'))
         except socket.error as msg:
             if msg[0] == 6: # connection closed
                 break
