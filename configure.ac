@@ -1374,7 +1374,6 @@ lib/Makefile							\
       lib/plugins/lrm/Makefile					\
          lib/plugins/lrm/dbus/Makefile				\
       lib/plugins/stonith/Makefile				\
-         lib/plugins/stonith/ribcl.py				\
          lib/plugins/stonith/external/Makefile			\
             lib/plugins/stonith/external/drac5			\
             lib/plugins/stonith/external/kdumpcheck		\
