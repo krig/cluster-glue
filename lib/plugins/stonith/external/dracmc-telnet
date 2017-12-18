@@ -92,7 +92,7 @@ class DracMC(telnetlib.Telnet):
 
     def write(self, buffer: bytes) -> None:
         self._history.append(self._get_timestamp() + ': WRITE: ' + repr(buffer.decode('ascii')))
-        telnetlib.Telnet.write(self, buffer.encode('ascii'))
+        telnetlib.Telnet.write(self, buffer)
 
     def read_until(self, what: bytes, timeout:int=2) -> bytes:
         line = telnetlib.Telnet.read_until(self, what, timeout)
