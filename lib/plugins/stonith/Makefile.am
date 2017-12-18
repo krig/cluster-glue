@@ -211,5 +211,3 @@ suicide_la_LDFLAGS	= -export-dynamic -module -avoid-version
 suicide_la_LIBADD	= $(top_builddir)/lib/stonith/libstonith.la 
 
 stonithscriptdir        =  $(stonith_plugindir)/stonith2
-
-stonithscript_SCRIPTS  	= ribcl.py 
