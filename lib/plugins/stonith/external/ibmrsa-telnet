@@ -53,6 +53,18 @@ import time
 import telnetlib
 import subprocess
 
+
+def is_program(prog):
+    """Is this program available?"""
+    def isexec(filename):
+        return os.path.isfile(filename) and os.access(filename, os.X_OK)
+    for p in os.getenv("PATH").split(os.pathsep):
+        f = os.path.join(p, prog)
+        if isexec(f):
+            return f
+    return None
+
+
 class TimeoutException(Exception):
     def __init__(self, value=None):
         Exception.__init__(self)
@@ -61,59 +73,59 @@ class TimeoutException(Exception):
     def __str__(self):
         return repr(self.value)
 
+
 class RSABoard(telnetlib.Telnet):
     def __init__(self, *args, **kwargs):
         telnetlib.Telnet.__init__(self, *args, **kwargs)
         self._timeout = 10
         self._loggedin = 0
         self._history = []
-        self._appl = os.path.basename(sys.argv[0])
 
-    def _get_timestamp(self):
+    def _get_timestamp(self) -> str:
         ct = time.time()
         msecs = (ct - int(ct)) * 1000
         return "%s,%03d" % (time.strftime("%Y-%m-%d %H:%M:%S",
                             time.localtime(ct)), msecs)
 
-    def write(self, buffer, nolog = False):
+    def write(self, buffer: bytes, nolog = False) -> None:
         self._history.append(self._get_timestamp() + ': WRITE: ' +
-            (nolog and '******' or repr(buffer)))
+            (nolog and '******' or repr(buffer.decode('ascii'))))
         telnetlib.Telnet.write(self, buffer)
 
-    def expect(self, what, timeout=20):
+    def expect(self, what: bytes, timeout=20):
         line = telnetlib.Telnet.expect(self, what, timeout)
-        self._history.append(self._get_timestamp() + ': READ : ' + repr(line))
+        self._history.append(self._get_timestamp() + ': READ : ' + repr(line.decode('ascii')))
         if not line:
-            raise TimeoutException("Timeout while waiting for '%s'." % (what, ))
+            raise TimeoutException("Timeout while waiting for '%s'." % (what.decode('ascii'), ))
         return line
 
-    def login(self, user, passwd):
+    def login(self, user: bytes, passwd: bytes):
         time.sleep(1)
-        line = self.expect(['\nlogin : ', '\nusername: '], self._timeout)
+        line = self.expect([b'\nlogin : ', b'\nusername: '], self._timeout)
         self.write(user)
-        self.write('\r')
-        line = self.expect(['\nPassword: ', '\npassword: '], self._timeout)
+        self.write(b'\r')
+        line = self.expect([b'\nPassword: ', b'\npassword: '], self._timeout)
         self.write(passwd, nolog = True)
-        self.write('\r')
-        line = self.expect(['\nsystem>', '> '], self._timeout)
+        self.write(b'\r')
+        line = self.expect([b'\nsystem>', b'> '], self._timeout)
 
     def reset(self):
-        self.write('power cycle\r')
-        line = self.expect(['\nok'], self._timeout)
-        line = self.expect(['\nsystem>', '> '], self._timeout)
+        self.write(b'power cycle\r')
+        line = self.expect([b'\nok'], self._timeout)
+        line = self.expect([b'\nsystem>', b'> '], self._timeout)
 
     def on(self):
-        self.write('power on\r')
-        line = self.expect(['\nok'], self._timeout)
-        line = self.expect(['\nsystem>', '> '], self._timeout)
+        self.write(b'power on\r')
+        line = self.expect([b'\nok'], self._timeout)
+        line = self.expect([b'\nsystem>', b'> '], self._timeout)
 
     def off(self):
-        self.write('power off\r')
-        line = self.expect(['\nok'], self._timeout)
-        line = self.expect(['\nsystem>', '> '], self._timeout)
+        self.write(b'power off\r')
+        line = self.expect([b'\nok'], self._timeout)
+        line = self.expect([b'\nsystem>', b'> '], self._timeout)
 
     def exit(self):
-        self.write('exit\r')
+        self.write(b'exit\r')
 
     def get_history(self):
         return "\n".join(self._history)
@@ -129,9 +141,6 @@ class RSAStonithPlugin:
         self._optional_cmds = 'on off'
         self._required_cmds_list = self._required_cmds.split()
         self._optional_cmds_list = self._optional_cmds.split()
-
-        # who am i
-        self._appl = os.path.basename(sys.argv[0])
 
         # telnet connection object
         self._connection = None
@@ -164,7 +173,10 @@ class RSAStonithPlugin:
         self._echo_debug("STDOUT:", what)
 
     def echo_log(self, level, *args):
-        subprocess.call(('ha_log.sh', level) +  args)
+        if is_program("ha_log.sh"):
+            subprocess.call("ha_log.sh {} '{}'".format(level, ' '.join(args)), shell=True)
+        elif os.environ.get("IBMRSA_DEBUG") == "yes":
+            print(level, ':', ' '.join(args))
 
     def _get_connection(self):
         if not self._connection:
@@ -173,8 +185,8 @@ class RSAStonithPlugin:
                   (self._parameters['ip_address'],))
             c.open(self._parameters['ip_address'])
             self._echo_debug("Connection established")
-            c.login(self._parameters['username'],
-                    self._parameters['password'])
+            c.login(self._parameters['username'].encode('ascii'),
+                    self._parameters['password'].encode('ascii'))
             self._connection = c
 
     def _end_connection(self):
